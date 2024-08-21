@@ -1,3 +1,8 @@
+use ed25519_dalek::{PublicKey, Signature};
+use ed25519_dalek::Verifier;
+use serde::{Serialize, Deserialize};
+use crate::wallet::Wallet;
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Transaction {
     pub sender: PublicKey,

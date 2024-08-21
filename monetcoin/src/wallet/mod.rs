@@ -1,5 +1,6 @@
 use ed25519_dalek::{Keypair, PublicKey, Signature, Signer, Verifier};
-use rand::rngs::OsRng;
+use rand::rngs::StdRng;
+use rand::{RngCore, SeedableRng};
 
 pub struct Wallet {
     pub public_key: PublicKey,
@@ -8,7 +9,7 @@ pub struct Wallet {
 
 impl Wallet {
     pub fn new() -> Self {
-        let mut csprng = OsRng{};
+        let mut csprng = StdRng::from_entropy();
         let keypair = Keypair::generate(&mut csprng);
         Wallet {
             public_key: keypair.public,
