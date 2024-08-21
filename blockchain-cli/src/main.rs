@@ -1,17 +1,53 @@
-// blockchain-cli/src/main.rs
+use blockchain::{Blockchain, Block};
+use tokio::net::{TcpListener, TcpStream};
+use tokio::sync::Mutex;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use std::sync::Arc;
+use serde_json::Result;
 
-use blockchain::Blockchain;
+#[tokio::main]
+async fn main() {
+    let blockchain = Arc::new(Mutex::new(Blockchain::new(4)));
+    let listener = TcpListener::bind("127.0.0.1:8080").await.unwrap();
 
-fn main() {
-    let mut blockchain = Blockchain::new(4);
+    loop {
+        let (socket, _) = listener.accept().await.unwrap();
+        let blockchain = Arc::clone(&blockchain);
 
-    blockchain.add_block("First block after genesis".to_string());
-    blockchain.add_block("Second block after genesis".to_string());
-    blockchain.add_block("Third block after genesis".to_string());
+        tokio::spawn(async move {
+            handle_connection(socket, blockchain).await;
+        });
+    }
+}
 
-    for block in blockchain.blocks.iter() {
-        println!("{:?}", block);
+async fn handle_connection(mut socket: TcpStream, blockchain: Arc<Mutex<Blockchain>>) {
+    let mut buffer = vec![0; 1024];
+
+    // Read data from the socket
+    match socket.read(&mut buffer).await {
+        Ok(_) => {
+            // Deserialize the block
+            let block: Result<Block> = serde_json::from_slice(&buffer);
+
+            match block {
+                Ok(block) => {
+                    // Add block to the blockchain if valid
+                    let mut blockchain = blockchain.lock().await;
+                    blockchain.receive_block(block).await;
+                    println!("Received and processed a new block.");
+                }
+                Err(e) => {
+                    eprintln!("Failed to parse block: {}", e);
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("Failed to read from socket: {}", e);
+        }
     }
 
-    println!("Is blockchain valid? {}", blockchain.is_valid());
+    // Send a response back to the peer
+    if let Err(e) = socket.write_all(b"Block received").await {
+        eprintln!("Failed to write to socket: {}", e);
+    }
 }
