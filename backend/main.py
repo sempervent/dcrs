@@ -1,6 +1,9 @@
 from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
+from models.content import ContentModel
+from models.labels import
+
 app = FastAPI()
 
 # Allow CORS for frontend requests
@@ -33,10 +36,16 @@ async def get_user_posts():
 
 @app.post("/api/posts")
 async def create_post(content: str = Form(...), files: List[UploadFile] = File(...)):
-    # Logic to handle the content and files, e.g., save to disk, store metadata in the blockchain, etc.
-    # Example: save files and return success response
+    # Logic to handle the content and files
+    new_content = ContentModel(title=content[:50], creator_id=current_user.id)  # Example: Creating a content entry
+    db.add(new_content)
+    db.commit()
+    db.refresh(new_content)
+
+    # Handle file uploads here
     for file in files:
         file_path = f"./uploads/{file.filename}"
         with open(file_path, "wb") as f:
             f.write(file.file.read())
-    return {"message": "Post created successfully"}
+
+    return {"id": new_content.id, "message": "Post created successfully"}

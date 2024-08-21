@@ -7,6 +7,16 @@
       <input type="file" multiple @change="handleFileUpload" />
     </div>
 
+    <div class="label-section">
+      <h3>Select Labels</h3>
+      <div v-for="label in predefinedLabels" :key="label.id">
+        <input type="checkbox" :id="'label-' + label.id" :value="label.name" v-model="selectedLabels">
+        <label :for="'label-' + label.id">{{ label.name }}</label>
+      </div>
+      <input type="text" v-model="newLabel" placeholder="Add custom label" @keydown.enter="addCustomLabel" />
+      <button @click="addCustomLabel">Add Label</button>
+    </div>
+
     <button @click="submitPost">Submit Post</button>
   </div>
 </template>
@@ -22,12 +32,27 @@ export default {
   data() {
     return {
       content: '',
-      files: []
+      files: [],
+      predefinedLabels: [],
+      selectedLabels: [],
+      newLabel: ''
     };
+  },
+  created() {
+    // Fetch predefined labels from the backend
+    axios.get('/api/labels/').then(response => {
+      this.predefinedLabels = response.data;
+    });
   },
   methods: {
     handleFileUpload(event) {
       this.files = event.target.files;
+    },
+    addCustomLabel() {
+      if (this.newLabel && !this.selectedLabels.includes(this.newLabel)) {
+        this.selectedLabels.push(this.newLabel);
+        this.newLabel = '';
+      }
     },
     submitPost() {
       const formData = new FormData();
@@ -39,7 +64,11 @@ export default {
 
       axios.post('/api/posts', formData)
         .then(response => {
-          this.$router.push('/');
+          const postId = response.data.id;
+          axios.post(`/api/contents/${postId}/labels/`, this.selectedLabels)
+            .then(() => {
+              this.$router.push('/');
+            });
         })
         .catch(error => {
           console.error('Error submitting post:', error);
@@ -50,7 +79,7 @@ export default {
 </script>
 
 <style>
-.upload-section {
+.upload-section, .label-section {
   margin-top: 20px;
 }
 </style>
